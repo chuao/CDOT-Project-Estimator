@@ -1,7 +1,7 @@
 
 # Construction Cost estimator
 
-![title](../images/192347.png)
+![title](images/192347.png)
 
 ## Objective
 
@@ -69,7 +69,7 @@ This is a bit abusive and probably midguided, but, hey, it's just a test!
 
 The results are (expetedly?) dissapointing residuals and errors are 8,323,752,586.67 (8 BILLIONS!!!) and 11,242,4015.26.
 
-![title](../images/Predictions.png)
+![title](images/Predictions.png)
 
 ## Nice observation
 
@@ -80,8 +80,8 @@ Besides the models showing not so great performance, the distribution of the err
 ### Model Error distirbution
 ![title](../images/model_errors.png)
 
-###Engineer's Error Distribution
-![title](../images/Engineer_error.png)
+### Engineer's Error Distribution
+![title](images/Engineer_error.png)
 
 ## Future work
 
