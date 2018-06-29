@@ -39,7 +39,6 @@ class pipeline():
 
         # create a list of sucessful bids (someone won)
         # otherwise there is no actual
-        #
         # and drop unsuccesful bids from tables
         successful_bids = bid[bid['Awarded'] == 1]['Proposal Number']
         bid = bid[bid['Proposal Number'].isin(successful_bids)]
@@ -88,7 +87,10 @@ class pipeline():
         ch_o_total.columns = ['Proposal Number', 'C_O_AM_2017']
 
         # Merge with bid
-        bid = pd.merge(bid,ch_o_total, on='Proposal Number', how='outer' ).sort_values(by=['Proposal Number', 'Awarded'])
+        bid = pd.merge(bid,ch_o_total,
+                       on='Proposal Number',
+                       how='outer' ).sort_values(by=['Proposal Number',
+                                                 'Awarded'])
         # no reported changes is assumed as the bid total was correct and is the actual expense
         bid.fillna(0, inplace=True)
         bid['Final cost 2017'] = bid['Bid Total 2017'] + bid['C_O_AM_2017']
@@ -122,11 +124,13 @@ class pipeline():
                                'C_O_AM_2017']
         OUTPUT: Feature and Target DataFrame
         '''
-        bid = self.bid
-        g_loser = bid[bid['Awarded'] == 0].groupby('Proposal Number')
-        bid = bid[bid['Awarded'] == 1]
+        feat = self.bid
+        g_loser = feat[feat['Awarded'] == 0].groupby('Proposal Number')
+        feat = feat[feat['Awarded'] == 1]
 
         # Make aggregated dataframe
+        # I am sure there is a better way to do this, but I don't have time
+        # to find it.
         loser = pd.DataFrame(g_loser.agg(['size', 'mean', 'min', 'max']))
         # flatten column indexes, honestly, because I don't know how to use them
         loser.columns = [' '.join(col) for col in loser.columns]
@@ -145,57 +149,144 @@ class pipeline():
         loser.columns = ['Proposal Number', 'No of participants',
                          'Loser Bid 2017 mean', 'Loser Bid 2017 min',
                          'Loser Bid 2017 max']
-        bid = pd.merge(bid,loser, on='Proposal Number', how='outer' )
-        bid.fillna(0, inplace=True)
-        bid['No of participants'] += 1
-        bid = bid.drop('Awarded', axis=1)
+        feat = pd.merge(feat,loser, on='Proposal Number', how='outer' )
+        feat.fillna(0, inplace=True)
+        # The No of participants should include the winner
+        feat['No of participants'] += 1
+        # Awarded is no longer necessary
+        feat = feat.drop('Awarded', axis=1)
 
-# Add winner bid to average and set mean to winner when only one bidder
-        bid['Loser Bid 2017 mean'] = np.where((bid['No of participants'] == 1),
-                                         bid['Bid Total 2017'],
-                                        (bid['Loser Bid 2017 mean'] +
-                                        (bid['No of participants'] - 1) *
-                                         bid['Bid Total 2017']) /
-                                         bid['No of participants'])
+        # Add winner bid to average and set mean to winner when only one bidder
+        feat['Loser Bid 2017 mean'] = np.where((feat['No of participants'] == 1),
+                                         feat['Bid Total 2017'],
+                                        (feat['Loser Bid 2017 mean'] +
+                                        (feat['No of participants'] - 1) *
+                                         feat['Bid Total 2017']) /
+                                         feat['No of participants'])
 
-# Add winner bid to min and set min to winner when only one bidder
-        bid['Loser Bid 2017 min'] = np.where((bid['No of participants'] == 1),
-                                        bid['Bid Total 2017'],
-                                        np.minimum(bid['Loser Bid 2017 min'],
-                                                   bid['Bid Total 2017']))
+        # Add winner bid to min and set min to winner when only one bidder
+        feat['Loser Bid 2017 min'] = np.where((feat['No of participants'] == 1),
+                                        feat['Bid Total 2017'],
+                                        np.minimum(feat['Loser Bid 2017 min'],
+                                                   feat['Bid Total 2017']))
 
-# Add winner bid to max and set max to winner when only one bidder
-        bid['Loser Bid 2017 max'] = np.where((bid['No of participants'] == 1),
-                                        bid['Bid Total 2017'],
-                                        np.maximum(bid['Loser Bid 2017 max'],
-                                                   bid['Bid Total 2017']))
+        # Add winner bid to max and set max to winner when only one bidder
+        feat['Loser Bid 2017 max'] = np.where((feat['No of participants'] == 1),
+                                        feat['Bid Total 2017'],
+                                        np.maximum(feat['Loser Bid 2017 max'],
+                                                   feat['Bid Total 2017']))
 
-# Rename columns to more meaninful and correct names
-        bid.columns = ['Proposal Number', 'date', 'Winning Bid 2017', 'Engineers Estimate 2017',
-                       'Changes 2017', 'Final cost 2017', 'No of participants', 'Bid 2017 mean',
+        # Rename columns to more meaninful and correct names
+        feat.columns = ['Proposal Number', 'date', 'Winning Bid 2017',
+                       'Engineers Estimate 2017', 'Changes 2017',
+                       'Final cost 2017', 'No of participants', 'Bid 2017 mean',
                        'Bid 2017 min', 'Bid 2017 max']
 
 # Create features Spread, and Eccentricity  of the winner and of the mean (1 and 2)
-        bid['Spread'] = bid['Bid 2017 max'] - bid['Bid 2017 min']
-        bid['Eccentricity 1'] = 0
-        bid['Eccentricity 1'] = np.where((bid['Spread'] == 0),
+        feat['Spread'] = feat['Bid 2017 max'] - feat['Bid 2017 min']
+        feat['Eccentricity 1'] = 0
+        feat['Eccentricity 1'] = np.where((feat['Spread'] == 0),
                                         0,
-                                        (bid['Bid 2017 min'] +
-                                         bid['Bid 2017 max'] -
-                                         2 * bid['Winning Bid 2017']) /
-                                         bid['Spread'])
-        bid['Eccentricity 2'] = 0
-        bid['Eccentricity 2'] = np.where((bid['Spread'] == 0),
+                                        (feat['Bid 2017 min'] +
+                                         feat['Bid 2017 max'] -
+                                         2 * feat['Winning Bid 2017']) /
+                                         feat['Spread'])
+        feat['Eccentricity 2'] = 0
+        feat['Eccentricity 2'] = np.where((feat['Spread'] == 0),
                                         0,
-                                        (bid['Bid 2017 min'] +
-                                         bid['Bid 2017 max'] -
-                                         2 * bid['Bid 2017 mean']) /
-                                         bid['Spread'])
-        self.bid = bid
+                                        (feat['Bid 2017 min'] +
+                                         feat['Bid 2017 max'] -
+                                         2 * feat['Bid 2017 mean']) /
+                                         feat['Spread'])
+        self.feat = feat
         return 'OK'
 
+    def model_OLS(self, X, y, n=5):
+        '''
+        Preliminar model using strictly OLS
 
+        INPUT: n number of foilds
+               X
+               y
 
+        OUTPUT: Avg residual after n kfold and
+                Avg errors against validation test
+        '''
+
+        self.spltrain_cv_residualsit(X, y)
+        X_global_train, y_global_train = self.X_global_train, self.y_global_train
+        n_folds = n
+        kf = KFold(n_splits=n_folds, random_state=RANDOM_SEED)
+        valid_cv_errors, train_cv_residuals = np.empty(n_folds), np.empty(n_folds)
+
+        for idx, (train, test) in enumerate(kf.split(X_global_train)):
+            # Split into train and test
+            X_train, X_valid = X_global_train.iloc[train], X_global_train.iloc[test]
+            y_train, y_valid = y_global_train.iloc[train], y_global_train.iloc[test]
+
+            mod = lm.LinearRegression( normalize=True,fit_intercept=True)
+            mod.fit(X_train, y_train)
+
+            # Make predictions.
+            y_pred = mod.predict(X_valid)
+            y_pred_train = mod.predict(X_train)
+            y_valid = y_valid.values.reshape(y_pred.shape)
+            y_train = y_train.values.reshape(X_train.shape[0], 1)
+
+            # Calculate MSE.
+            # done below as an append argument
+
+            # Record the MSE in a numpy array.
+            valid_cv_errors[idx] = np.linalg.norm(y_pred -  y_valid)
+            train_cv_residuals[idx] = np.linalg.norm(y_pred_train -  y_train)
+        return train_cv_residuals.mean(), valid_cv_errors.mean()
+
+    def spltrain_cv_residualsit(self, X, y):
+        self.X_global_train, self.X_test, self.y_global_train, self.y_test = sk.model_selection.train_test_split(X, y,
+                                                     train_size=0.85,
+                                                     test_size=0.15,
+                                                     shuffle=True,
+                                                     random_state=RANDOM_SEED)
+
+    def model_ElasticNet(self, X, y):
+        '''
+        Preliminar model using strictly ElasticNet
+
+        INPUT: n number of foilds
+               X
+               y
+
+        OUTPUT: Avg residual after n kfold and
+                Avg errors against validation test
+        '''
+
+        self.spltrain_cv_residualsit(X, y)
+        X_global_train, y_global_train = self.X_global_train, self.y_global_train
+        X_train, X_valid, y_train, y_valid = sk.model_selection.train_test_split(X_global_train,
+                                                                        y_global_train,
+                                                                        train_size=0.80,
+                                                                        test_size=0.20,
+                                                                        shuffle=True,
+                                                                        random_state=None)
+
+        mod = lm.ElasticNetCV(normalize=True,
+                              max_iter=100000,
+                              fit_intercept=True,
+                              tol=1e-9,
+                              random_state=None)
+        mod.fit(X_train, y_train)
+
+        # Make predictions.
+        y_pred = mod.predict(X_valid)
+        y_pred_train = mod.predict(X_train)
+        y_valid = y_valid.values.reshape(y_pred.shape)
+        y_train = y_train.values.reshape(X_train.shape[0], 1)
+
+        # Calculate MSE.
+
+        valid_cv_errors = np.linalg.norm(y_pred -  y_valid)
+        train_cv_residuals = np.linalg.norm(y_pred_train -  y_train)
+        return mod.l1_ratio_, mod.alpha_, train_cv_residuals, valid_cv_errors
 
 
 
@@ -204,6 +295,16 @@ class pipeline():
 if __name__ == '__main__':
     p = pipeline()
     p.cleandf()
-    print(p.bid)
+    print(p.bid.head())
     p.make_feat()
-    print(p.bid)
+    print(p.bid.head())
+    y = p.feat[['Final cost 2017']]
+    X = p.feat[[ 'Bid 2017 min', 'Bid 2017 max','Spread', 'Eccentricity 2']]
+    print(p.model_OLS(X, y, n=5))
+    X = p.feat[['Winning Bid 2017','Engineers Estimate 2017',
+                'No of participants', 'Bid 2017 mean',
+                'Bid 2017 min', 'Bid 2017 max', 'Spread',
+                'Eccentricity 1', 'Eccentricity 2']]
+    print(p.model_ElasticNet(X, y))
+    X = p.feat[[ 'Bid 2017 min', 'Bid 2017 max','Spread', 'Eccentricity 2']]
+    print(p.model_ElasticNet(X, y))
