@@ -78,7 +78,7 @@ Besides the models showing not so great performance, the distribution of the err
 
 
 ### Model Error distirbution
-![title](../images/model_errors.png)
+![title](images/model_errors.png)
 
 ### Engineer's Error Distribution
 ![title](images/Engineer_error.png)
